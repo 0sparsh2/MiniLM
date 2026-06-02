@@ -1,0 +1,15 @@
+# Ignore environments and binaries
+.venv/
+venv/
+__pycache__/
+*.pt
+*.bin
+*.txt
+*.jsonl
+*.log
+smollm_runner
+bisamba_runner
+build/
+zig-cache/
+zig-out/
+.env
