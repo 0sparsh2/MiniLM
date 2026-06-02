@@ -101,7 +101,7 @@ class BitTransformerBlock(nn.Module):
         return x
 
 class BitGPT(nn.Module):
-    def __init__(self, vocab_size, embed_dim, num_layers, num_heads):
+    def __init__(self, vocab_size, embed_dim, num_layers, num_heads, tie_weights=False):
         super().__init__()
         # Continuous embeddings are usually kept continuous in BitNet
         self.vocab_embed = nn.Embedding(vocab_size, embed_dim)
@@ -114,6 +114,9 @@ class BitGPT(nn.Module):
         self.head = BitLinear(embed_dim, vocab_size, bias=False)
         
         self.apply(self._init_weights)
+
+        if tie_weights:
+            self.head.weight = self.vocab_embed.weight
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear) or isinstance(module, BitLinear):

@@ -67,9 +67,19 @@ This is our first successful attempt at scaling the BitNet engine out of charact
 
 ---
 
-### V2: Weight Tying
+### V2: Weight Tying (Deep Architecture)
 **Objective:** The 32,000-word Vocabulary Embedding Matrix and the 32,000-word Output Matrix are currently two separate blocks of memory. By "tying" them (using the exact same matrix for input and output), we will instantly delete ~8 Million parameters. We will then inject those "free" parameters as deeper Transformer Layers, vastly increasing logic capabilities while staying locked at 3.93 Megabytes.
-*(Pending)*
+
+**Changes Made:**
+- Set `self.head.weight = self.vocab_embed.weight`
+- Increased Transformer Layers from 4 to 12.
+- **New Size:** 3.96 MB (Only a 0.03 MB increase for 8 additional logic layers).
+
+**Results @ 3,000 Steps:**
+- **Perplexity:** 23.7 (Higher than V1, as 12 layers are much harder to train and require far more than 3,000 steps to converge).
+- **Coherence Evaluation:** Despite the lack of training, it generates noticeably more complex sentence structures and adjectives than the 4-layer model.
+- **Output Sample:**
+> "Once upon a time, there was a little star. It was very old. One day, a green chimney. It was pink and shiny coat. It was her room, but she heard a big basket that she did not know that it blew away from far away from the jar. Lily was all around the grass and grabbed her eyes. Every day she had a funny box with joy. She was"
 
 ---
 

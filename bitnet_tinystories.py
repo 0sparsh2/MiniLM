@@ -66,7 +66,7 @@ def main():
     all_tokens_tensor = torch.tensor(all_tokens, dtype=torch.long)
     log(f"Total tokens for training: {len(all_tokens)}")
 
-    model = BitGPT(vocab_size, embed_dim=256, num_layers=4, num_heads=4).to(device)
+    model = BitGPT(vocab_size, embed_dim=256, num_layers=12, num_heads=4, tie_weights=True).to(device)
     params = sum(p.numel() for p in model.parameters())
     log(f"Total Parameters: {params}")
     log(f"Size at 16-bit Float: {params * 2 / 1024 / 1024:.2f} MB")
@@ -94,8 +94,8 @@ def main():
             perplexity = torch.exp(loss)
             log(f"Step {step} | Loss: {loss.item():.4f} | Perplexity: {perplexity.item():.4f}")
 
-    log("Saving model weights to bitnet_tinystories.pt...")
-    torch.save(model.state_dict(), "bitnet_tinystories.pt")
+    log("Saving model weights to bitnet_tied.pt...")
+    torch.save(model.state_dict(), "bitnet_tied.pt")
 
     log("\n--- GENERATING TEXT ---")
     model.eval()
