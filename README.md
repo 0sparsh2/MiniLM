@@ -20,7 +20,7 @@ By combining **BitNet 1.58b ternary quantization** ($\{-1, 0, 1\}$ weights) with
 
 During training, we tracked metrics using our custom monitoring dashboard. Below is the training run visualization:
 
-![Training Monitor Dashboard](docs/images/training_monitor.webp)
+![Training Monitor Dashboard](docs/images/training_monitor.png)
 
 *The dashboard displays the real-time cross-entropy loss convergence, learning rate schedule (cosine decay), and parameter gradient distributions.*
 
