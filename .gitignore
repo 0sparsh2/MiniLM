@@ -11,5 +11,22 @@ smollm_runner
 bisamba_runner
 build/
 zig-cache/
+.zig-cache/
 zig-out/
 .env
+
+# Node dependencies
+node_modules/
+ui/node_modules/
+
+# Compiled local binaries
+baseline_f32
+bench_packed
+bench_std
+test_args
+test_fs
+test_pool
+*.o
+
+# Local database
+facts.db

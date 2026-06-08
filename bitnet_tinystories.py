@@ -79,7 +79,7 @@ def main():
     seq_length = 64
 
     log("Training the 1.58b BPE Transformer on TinyStories...")
-    for step in range(3000):
+    for step in range(100000):
         x, y = get_batch(all_tokens_tensor, seq_length, batch_size)
         x, y = x.to(device), y.to(device)
 

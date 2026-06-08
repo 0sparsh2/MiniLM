@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MiniLM 1.58b — Training Monitor</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #080a10;
+    --surface:  #0f1117;
+    --surface2: #161925;
+    --border:   rgba(255,255,255,0.07);
+    --text:     #eef2ff;
+    --muted:    #6b7280;
+    --indigo:   #818cf8;
+    --pink:     #f472b6;
+    --green:    #34d399;
+    --amber:    #fbbf24;
+    --red:      #f87171;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── BG glow ─── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 700px 400px at 15% 0%,   rgba(99,102,241,.06) 0%, transparent 70%),
+      radial-gradient(ellipse 600px 350px at 85% 100%,  rgba(244,114,182,.04) 0%, transparent 70%);
+  }
+
+  /* ─── Layout ─── */
+  .shell { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ─── Header ─── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.4rem 3rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(8,10,16,.85);
+    backdrop-filter: blur(16px);
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .brand { display: flex; flex-direction: column; gap: .15rem; }
+  .brand h1 {
+    font-size: 1.45rem; font-weight: 800; letter-spacing: -0.5px;
+    background: linear-gradient(130deg, #a5b4fc, #f472b6 60%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .brand span { font-size: .8rem; color: var(--muted); }
+
+  .live-pill {
+    display: flex; align-items: center; gap: .55rem;
+    padding: .45rem 1.1rem;
+    background: rgba(52,211,153,.07);
+    border: 1px solid rgba(52,211,153,.22);
+    border-radius: 9999px;
+    font-size: .82rem; font-weight: 600; color: var(--green);
+    letter-spacing: .5px;
+  }
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 8px var(--green);
+    animation: blink 2s ease-in-out infinite;
+  }
+  @keyframes blink {
+    0%,100% { opacity: 1; box-shadow: 0 0 8px var(--green); }
+    50%      { opacity: .4; box-shadow: none; }
+  }
+
+  /* ─── Main ─── */
+  main { flex: 1; padding: 2.5rem 3rem; max-width: 1600px; width: 100%; margin: 0 auto; }
+
+  /* ─── Section title ─── */
+  .section-label {
+    font-size: .72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--muted); margin-bottom: 1.2rem;
+  }
+
+  /* ─── Stat cards ─── */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; margin-bottom: 2.5rem; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.4rem 1.6rem;
+    position: relative; overflow: hidden;
+    transition: transform .25s, box-shadow .25s;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 12px 32px -8px rgba(0,0,0,.5); }
+
+  /* accent stripe */
+  .card::after {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 100%; height: 3px;
+    background: var(--stripe-color, var(--indigo));
+    border-radius: 16px 16px 0 0;
+  }
+  .card.pink   { --stripe-color: var(--pink);  }
+  .card.green  { --stripe-color: var(--green); }
+  .card.amber  { --stripe-color: var(--amber); }
+
+  .card-label { font-size: .78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: .6rem; }
+  .card-value { font-size: 2rem; font-weight: 800; letter-spacing: -1px; line-height: 1; margin-bottom: .35rem; }
+  .card-sub   { font-size: .78rem; color: var(--muted); }
+  .progress-bar {
+    height: 4px; background: rgba(255,255,255,.06); border-radius: 99px; margin-top: .8rem;
+  }
+  .progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--indigo), var(--pink));
+    border-radius: 99px; transition: width .5s ease;
+  }
+
+  /* ─── Charts ─── */
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px; padding: 1.8rem;
+  }
+  .chart-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1.4rem; }
+  .chart-wrap { position: relative; height: 300px; }
+
+  /* ─── Legend ─── */
+  .chart-legend { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 1.1rem; }
+  .leg-item { display: flex; align-items: center; gap: .4rem; font-size: .78rem; color: var(--muted); }
+  .leg-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .leg-line { width: 16px; height: 3px; border-radius: 2px; border-top: 2px dashed; flex-shrink: 0; }
+
+  /* ─── Comparison table ─── */
+  .compare-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px; padding: 1.8rem; margin-bottom: 2rem;
+  }
+  .compare-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1.4rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  thead th { color: var(--muted); font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .8px; padding: .5rem .8rem; text-align: left; border-bottom: 1px solid var(--border); }
+  tbody td { padding: .7rem .8rem; border-bottom: 1px solid rgba(255,255,255,.03); }
+  tbody tr:hover td { background: rgba(255,255,255,.02); }
+  .badge {
+    display: inline-flex; align-items: center; gap: .3rem;
+    padding: .2rem .6rem; border-radius: 6px; font-size: .75rem; font-weight: 600;
+  }
+  .badge-green { background: rgba(52,211,153,.12); color: var(--green); }
+  .badge-amber { background: rgba(251,191,36,.12);  color: var(--amber); }
+  .badge-pink  { background: rgba(244,114,182,.12); color: var(--pink);  }
+
+  /* ─── Log stream ─── */
+  .log-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px; padding: 1.8rem;
+  }
+  .log-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1.2rem; }
+  .log-stream {
+    background: var(--bg);
+    border: 1px solid rgba(255,255,255,.04);
+    border-radius: 10px; padding: 1rem 1.2rem;
+    height: 220px; overflow-y: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .79rem; color: #a7f3d0;
+    display: flex; flex-direction: column; gap: .2rem;
+  }
+  .log-stream::-webkit-scrollbar { width: 4px; }
+  .log-stream::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 2px; }
+  .log-line { line-height: 1.5; }
+  .log-step { color: var(--indigo); }
+  .log-val  { color: var(--green); }
+  .log-ppl  { color: var(--amber); }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 1100px) {
+    .stats  { grid-template-columns: 1fr 1fr; }
+    .charts { grid-template-columns: 1fr; }
+    header, main { padding-left: 1.5rem; padding-right: 1.5rem; }
+  }
+  @media (max-width: 640px) {
+    .stats { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <h1>MiniLM 1.58b · Training Monitor</h1>
+      <span>Dense Distillation vs Sparse 2:4 · 15,000 Steps · Alpaca Instruct</span>
+    </div>
+    <div class="live-pill">
+      <div class="live-dot" id="liveDot"></div>
+      <span id="liveLabel">LOADING…</span>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main>
+
+    <!-- Stat cards -->
+    <p class="section-label">Overview</p>
+    <div class="stats">
+
+      <div class="card">
+        <div class="card-label">Dense Distilled — Steps</div>
+        <div class="card-value" id="denseSteps">—</div>
+        <div class="card-sub" id="denseStatus">Waiting for data…</div>
+        <div class="progress-bar"><div class="progress-fill" id="denseProg" style="width:0%"></div></div>
+      </div>
+
+      <div class="card pink">
+        <div class="card-label">Dense — Best Val Loss</div>
+        <div class="card-value" id="denseBest">—</div>
+        <div class="card-sub" id="denseBestStep">Target: &lt; 2.00</div>
+      </div>
+
+      <div class="card green">
+        <div class="card-label">Teacher Baseline (Ideal)</div>
+        <div class="card-value" id="teacherLoss">1.85</div>
+        <div class="card-sub">SmolLM-135M-Instruct · PPL 6.36</div>
+      </div>
+
+      <div class="card amber">
+        <div class="card-label">Sparse 2:4 — Final Loss</div>
+        <div class="card-value" id="sparseFinal">—</div>
+        <div class="card-sub">50% Sparsity · 15k Steps</div>
+      </div>
+
+    </div>
+
+    <!-- Charts -->
+    <p class="section-label">Convergence Curves</p>
+    <div class="charts">
+
+      <div class="chart-card">
+        <h2>Validation Cross-Entropy Loss ↓</h2>
+        <div class="chart-wrap"><canvas id="lossChart"></canvas></div>
+        <div class="chart-legend">
+          <div class="leg-item"><div class="leg-dot" style="background:#818cf8"></div>Dense Student (Val CE)</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#fbbf24"></div>Sparse Student (Train CE)</div>
+          <div class="leg-item"><div class="leg-line" style="border-color:#34d399"></div>Teacher Ideal Target</div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <h2>Validation Perplexity (log scale) ↓</h2>
+        <div class="chart-wrap"><canvas id="pplChart"></canvas></div>
+        <div class="chart-legend">
+          <div class="leg-item"><div class="leg-dot" style="background:#f472b6"></div>Dense Student (Val PPL)</div>
+          <div class="leg-item"><div class="leg-line" style="border-color:#34d399"></div>Teacher Ideal Target</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Comparison table -->
+    <p class="section-label">Side-by-Side Summary</p>
+    <div class="compare-card">
+      <h2>Model Performance at 15,000 Steps</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th><th>Architecture</th><th>Size</th>
+            <th>Best Val Loss</th><th>Best Val PPL</th><th>Final Loss</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Teacher</strong></td>
+            <td>SmolLM-135M-Instruct</td>
+            <td>135M params · 80MB</td>
+            <td id="t-teacherLoss">1.85</td>
+            <td id="t-teacherPpl">6.36</td>
+            <td>—</td>
+            <td><span class="badge badge-green">✓ Baseline</span></td>
+          </tr>
+          <tr>
+            <td><strong>Dense Student</strong></td>
+            <td>12L BitNet, KD α=0.5, T=2</td>
+            <td>~25M params · 97MB</td>
+            <td id="t-denseBest">—</td>
+            <td id="t-densePplBest">—</td>
+            <td id="t-denseFinal">—</td>
+            <td><span class="badge badge-pink" id="t-denseStatus">Training…</span></td>
+          </tr>
+          <tr>
+            <td><strong>Sparse 2:4 Student</strong></td>
+            <td>12L BitNet, 50% Zero Weights</td>
+            <td>~6.3M effective · 98MB</td>
+            <td id="t-sparseBest">—</td>
+            <td>—</td>
+            <td id="t-sparseFinal">—</td>
+            <td><span class="badge badge-amber">✓ Complete</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Live logs -->
+    <p class="section-label">Live Dense Training Log</p>
+    <div class="log-card">
+      <h2>Most Recent Steps (auto-refreshes every 2s)</h2>
+      <div class="log-stream" id="logStream">
+        <div class="log-line" style="color:#6b7280">Waiting for log data…</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ─── Chart setup ───────────────────────────────────────
+const GRID   = 'rgba(255,255,255,0.05)';
+const TICK   = '#6b7280';
+const FONT   = { family: 'Outfit' };
+const baseScales = (yLabel, yType='linear') => ({
+  x: {
+    grid: { color: GRID },
+    ticks: { color: TICK, font: FONT, maxTicksLimit: 10 },
+    title: { display: true, text: 'Training Steps', color: TICK, font: FONT }
+  },
+  y: {
+    type: yType,
+    grid: { color: GRID },
+    ticks: { color: TICK, font: FONT },
+    title: { display: true, text: yLabel, color: TICK, font: FONT }
+  }
+});
+
+let lossChart, pplChart;
+
+function initCharts() {
+  const lossCtx = document.getElementById('lossChart').getContext('2d');
+  const pplCtx  = document.getElementById('pplChart').getContext('2d');
+
+  lossChart = new Chart(lossCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'Dense Val CE Loss',
+          data: [], borderColor: '#818cf8', backgroundColor: 'rgba(129,140,248,.08)',
+          borderWidth: 2, pointRadius: 0, tension: 0.2, fill: true
+        },
+        {
+          label: 'Sparse Train Loss',
+          data: [], borderColor: '#fbbf24',
+          borderWidth: 1.5, borderDash: [4,4], pointRadius: 0, tension: 0.2, fill: false
+        },
+        {
+          label: 'Teacher Baseline',
+          data: [], borderColor: '#34d399',
+          borderWidth: 2, borderDash: [12,6], pointRadius: 0, tension: 0, fill: false
+        }
+      ]
+    },
+    options: {
+      animation: false, responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: baseScales('CE Loss')
+    }
+  });
+
+  pplChart = new Chart(pplCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'Dense Val PPL',
+          data: [], borderColor: '#f472b6', backgroundColor: 'rgba(244,114,182,.06)',
+          borderWidth: 2, pointRadius: 0, tension: 0.2, fill: true
+        },
+        {
+          label: 'Teacher PPL Baseline',
+          data: [], borderColor: '#34d399',
+          borderWidth: 2, borderDash: [12,6], pointRadius: 0, tension: 0, fill: false
+        }
+      ]
+    },
+    options: {
+      animation: false, responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: baseScales('Perplexity (log)', 'logarithmic')
+    }
+  });
+}
+
+// ─── Data fetch & update ───────────────────────────────
+async function refresh() {
+  let data;
+  try {
+    const res = await fetch('/api/logs');
+    data = await res.json();
+  } catch(e) {
+    document.getElementById('liveLabel').textContent = 'SERVER OFFLINE';
+    document.getElementById('liveDot').style.background = '#f87171';
+    document.getElementById('liveDot').style.boxShadow = '0 0 8px #f87171';
+    document.getElementById('liveDot').style.animation = 'none';
+    return;
+  }
+
+  const dense  = data.dense;
+  const sparse = data.sparse;
+  const teacher = data.teacher;
+
+  // ── Stat cards
+  const TOTAL_STEPS = 15000;
+  const lastDense   = dense.length > 0 ? dense[dense.length - 1] : null;
+  const lastSparse  = sparse.length > 0 ? sparse[sparse.length - 1] : null;
+
+  if (lastDense) {
+    const step = lastDense.step;
+    const pct  = Math.min(100, (step / TOTAL_STEPS * 100)).toFixed(1);
+    document.getElementById('denseSteps').textContent = step.toLocaleString() + ' / 15,000';
+    document.getElementById('denseProg').style.width  = pct + '%';
+
+    if (step >= TOTAL_STEPS - 50) {
+      document.getElementById('denseStatus').textContent  = '✓ Training Complete';
+      document.getElementById('liveLabel').textContent    = 'COMPLETE';
+      document.getElementById('t-denseStatus').textContent= '✓ Complete';
+      document.getElementById('t-denseStatus').className  = 'badge badge-green';
+    } else {
+      document.getElementById('denseStatus').textContent = `Step ${step} running…`;
+    }
+
+    // best val loss
+    const bestPoint = dense.reduce((a,b) => b.val_loss < a.val_loss ? b : a);
+    document.getElementById('denseBest').textContent = bestPoint.val_loss.toFixed(4);
+    document.getElementById('denseBestStep').textContent = `@ step ${bestPoint.step}`;
+    document.getElementById('t-denseBest').textContent   = bestPoint.val_loss.toFixed(4);
+    document.getElementById('t-densePplBest').textContent = bestPoint.val_ppl.toFixed(2);
+    document.getElementById('t-denseFinal').textContent  = lastDense.val_loss.toFixed(4);
+  }
+
+  if (lastSparse) {
+    const sparseBest = sparse.reduce((a,b) => b.loss < a.loss ? b : a);
+    document.getElementById('sparseFinal').textContent   = lastSparse.loss.toFixed(4);
+    document.getElementById('t-sparseBest').textContent  = sparseBest.loss.toFixed(4);
+    document.getElementById('t-sparseFinal').textContent = lastSparse.loss.toFixed(4);
+  }
+
+  // Teacher
+  document.getElementById('teacherLoss').textContent    = teacher.val_loss.toFixed(4);
+  document.getElementById('t-teacherLoss').textContent  = teacher.val_loss.toFixed(4);
+  document.getElementById('t-teacherPpl').textContent   = teacher.val_ppl.toFixed(2);
+
+  // ── Charts
+  const denseSteps = dense.map(d => d.step);
+
+  // Build a quick lookup for sparse loss by step
+  const sparseMap = {};
+  sparse.forEach(s => { sparseMap[s.step] = s.loss; });
+
+  const sparseInterp = denseSteps.map(step => {
+    // find nearest sparse point within ±300 steps
+    let best = null, bestDist = Infinity;
+    for (const s of sparse) {
+      const dist = Math.abs(s.step - step);
+      if (dist < bestDist) { bestDist = dist; best = s.loss; }
+    }
+    return bestDist <= 300 ? best : null;
+  });
+
+  lossChart.data.labels         = denseSteps;
+  lossChart.data.datasets[0].data = dense.map(d => d.val_loss);
+  lossChart.data.datasets[1].data = sparseInterp;
+  lossChart.data.datasets[2].data = denseSteps.map(() => teacher.val_loss);
+  lossChart.update('none');
+
+  pplChart.data.labels          = denseSteps;
+  pplChart.data.datasets[0].data  = dense.map(d => d.val_ppl);
+  pplChart.data.datasets[1].data  = denseSteps.map(() => teacher.val_ppl);
+  pplChart.update('none');
+
+  // ── Live log stream
+  const logEl = document.getElementById('logStream');
+  logEl.innerHTML = '';
+  const last20 = dense.slice(-20).reverse();
+  for (const pt of last20) {
+    const div = document.createElement('div');
+    div.className = 'log-line';
+    div.innerHTML =
+      `<span class="log-step">[${String(pt.step).padStart(5,'0')}]</span>` +
+      ` Train: ${pt.train_loss.toFixed(4)}` +
+      ` │ Val: <span class="log-val">${pt.val_loss.toFixed(4)}</span>` +
+      ` │ PPL: <span class="log-ppl">${pt.val_ppl.toFixed(2)}</span>`;
+    logEl.appendChild(div);
+  }
+
+  // Live indicator
+  document.getElementById('liveLabel').textContent = 'LIVE';
+}
+
+window.onload = () => {
+  initCharts();
+  refresh();
+  setInterval(refresh, 2000);
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPU GPT</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <h1>CPU GPT</h1>
+                <select id="modelSelect" class="model-dropdown">
+                    <option value="arnir0/Tiny-LLM">Tiny-LLM (7.7MB)</option>
+                    <option value="tinystories_v1">TinyStories V1 (4-Layer, 3.93MB)</option>
+                    <option value="tinystories_v2">TinyStories V2 (12-Layer Tied, 3.96MB)</option>
+                    <option value="bitnet_instruct">Alpaca Instruct V4 (12-Layer Tied, 3.96MB)</option>
+                    <option value="bitnet_instruct_v5">Alpaca Instruct V5 (Full Context, 3.96MB)</option>
+                    <option value="HuggingFaceTB/SmolLM-135M">SmolLM-135M (80MB)</option>
+                </select>
+            </div>
+            <div class="status-indicator">
+                <span class="dot"></span>
+                <span class="status-text">Disconnected</span>
+            </div>
+        </header>
+
+        <main class="chat-container" id="chatContainer">
+            <!-- Messages will be injected here -->
+        </main>
+
+        <form id="inputForm" class="input-area">
+            <input type="text" id="messageInput" placeholder="Send a message..." autocomplete="off" disabled>
+            <button type="submit" id="sendBtn" disabled>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </form>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
